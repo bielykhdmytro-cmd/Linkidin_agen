@@ -4,7 +4,7 @@ import time
 # ==============================
 # НАСТРОЙКИ
 # ==============================
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 MODEL = "anthropic/claude-3-5-haiku"
 
 # ==============================
