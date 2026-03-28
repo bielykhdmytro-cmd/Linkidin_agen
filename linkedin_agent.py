@@ -1,4 +1,5 @@
 import requests
+import time
 
 # ==============================
 # НАСТРОЙКИ
@@ -7,7 +8,7 @@ OPENROUTER_API_KEY = "sk-or-v1-8bc49372bb0d0a3ff9281e8acbb4a72f6b4b79a4d63fda05f
 MODEL = "anthropic/claude-3-5-haiku"
 
 # ==============================
-# ТВОЙ ПРОФИЛЬ (заполни под себя)
+# ТВОЙ ПРОФИЛЬ
 # ==============================
 YOUR_NAME = "Дмитрий"
 YOUR_EXPERTISE = "автоматизация бизнес-процессов и AI-инструменты для продаж"
@@ -26,7 +27,7 @@ def generate_comment(post_text):
 - Упомяни конкретную деталь из поста (покажи что реально читал)
 - Можно добавить короткий инсайт из своего опыта
 - НЕ пиши "Nice post!" или банальщину
-- Пиши на том же языке что и пост
+- Определи язык поста и отвечай на том же языке (немецкий или английский)
 
 ПОСТ:
 {post_text}
@@ -52,28 +53,29 @@ def generate_comment(post_text):
 
 
 # ==============================
-# ЗАПУСК
+# ГЛАВНЫЙ ЦИКЛ (работает 24/7)
 # ==============================
 if __name__ == "__main__":
     print("=" * 50)
-    print("LinkedIn Comment Generator — powered by Claude")
+    print("LinkedIn Agent запущен и работает 24/7")
     print("=" * 50)
 
-    # Вставь сюда текст поста для теста
+    # Тестовый пост для проверки
     test_post = """
-    Автоматизация — это не про замену людей. 
-    Это про то, чтобы люди занимались тем, что важно, 
-    а рутину отдавали машинам. За последний год мы 
-    автоматизировали 80% нашего sales-процесса и выросли 
-    в 3 раза без найма новых людей.
+    Automatisierung bedeutet nicht, Menschen zu ersetzen.
+    Es geht darum, dass Menschen sich auf das Wesentliche 
+    konzentrieren können. Wir haben 80% unserer Sales-Prozesse 
+    automatisiert und sind ohne neue Mitarbeiter um das 3-fache gewachsen.
     """
 
-    print("\nПОСТ:")
-    print(test_post)
-    print("\nГЕНЕРИРУЕМ КОММЕНТАРИЙ...\n")
-
+    print("\nЗапускаем тест с немецким постом...")
     comment = generate_comment(test_post)
-
-    print("КОММЕНТАРИЙ ОТ CLAUDE:")
+    print("\nКОММЕНТАРИЙ ОТ CLAUDE:")
     print(comment)
     print("\n" + "=" * 50)
+    print("Агент готов к работе. Ожидаю задачи...\n")
+
+    # Бесконечный цикл — держит сервер живым
+    while True:
+        print("Агент активен... следующая проверка через 60 минут")
+        time.sleep(3600)
