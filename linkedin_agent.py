@@ -4,7 +4,7 @@ import time
 # ==============================
 # НАСТРОЙКИ
 # ==============================
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 MODEL = "anthropic/claude-3-5-haiku"
 
 # ==============================
@@ -24,10 +24,9 @@ def generate_comment(post_text):
 Правила комментария:
 - Длина: 2-4 предложения
 - Тон: профессиональный, дружелюбный
-- Упомяни конкретную деталь из поста (покажи что реально читал)
-- Можно добавить короткий инсайт из своего опыта
-- НЕ пиши "Nice post!" или банальщину
+- Упомяни конкретную деталь из поста
 - Определи язык поста и отвечай на том же языке (немецкий или английский)
+- НЕ пиши "Nice post!" или банальщину
 
 ПОСТ:
 {post_text}
@@ -49,7 +48,14 @@ def generate_comment(post_text):
     )
 
     result = response.json()
-    return result["choices"][0]["message"]["content"]
+    print("Ответ от OpenRouter:", result)
+
+    if "choices" in result:
+        return result["choices"][0]["message"]["content"]
+    elif "error" in result:
+        return f"Ошибка API: {result['error']}"
+    else:
+        return f"Неожиданный ответ: {result}"
 
 
 # ==============================
@@ -60,7 +66,6 @@ if __name__ == "__main__":
     print("LinkedIn Agent запущен и работает 24/7")
     print("=" * 50)
 
-    # Тестовый пост для проверки
     test_post = """
     Automatisierung bedeutet nicht, Menschen zu ersetzen.
     Es geht darum, dass Menschen sich auf das Wesentliche 
@@ -70,12 +75,12 @@ if __name__ == "__main__":
 
     print("\nЗапускаем тест с немецким постом...")
     comment = generate_comment(test_post)
-    print("\nКОММЕНТАРИЙ ОТ CLAUDE:")
+    print("\nРЕЗУЛЬТАТ:")
     print(comment)
     print("\n" + "=" * 50)
-    print("Агент готов к работе. Ожидаю задачи...\n")
+    print("Агент готов. Жду следующий цикл...\n")
 
     # Бесконечный цикл — держит сервер живым
     while True:
-        print("Агент активен... следующая проверка через 60 минут")
+        print("Агент активен...")
         time.sleep(3600)
