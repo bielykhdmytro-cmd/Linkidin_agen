@@ -1,10 +1,11 @@
 import requests
 import time
+import os
 
 # ==============================
-# НАСТРОЙКИ
+# НАСТРОЙКИ — ключ берётся из Railway Variables
 # ==============================
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 MODEL = "anthropic/claude-3-5-haiku"
 
 # ==============================
@@ -12,6 +13,16 @@ MODEL = "anthropic/claude-3-5-haiku"
 # ==============================
 YOUR_NAME = "Дмитрий"
 YOUR_EXPERTISE = "автоматизация бизнес-процессов и AI-инструменты для продаж"
+
+# ==============================
+# ПРОВЕРКА КЛЮЧА
+# ==============================
+if not OPENROUTER_API_KEY:
+    print("ОШИБКА: Переменная OPENROUTER_API_KEY не найдена!")
+    print("Добавь её в Railway → Variables")
+    exit(1)
+else:
+    print(f"Ключ найден: {OPENROUTER_API_KEY[:10]}...")
 
 # ==============================
 # ФУНКЦИЯ: Генерация комментария
