@@ -1,14 +1,14 @@
 import os
 import requests
+import time
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # ==============================
 # НАСТРОЙКИ из Railway Variables
 # ==============================
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "314445281")
 MODEL = "anthropic/claude-3-5-haiku"
 
 YOUR_NAME = "Дмитрий"
@@ -24,6 +24,31 @@ if not TELEGRAM_BOT_TOKEN:
     exit(1)
 
 print("Все переменные найдены — агент запускается!")
+
+TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+# ==============================
+# TELEGRAM: Отправить сообщение
+# ==============================
+def send_message(chat_id, text):
+    requests.post(f"{TELEGRAM_API}/sendMessage", json={
+        "chat_id": chat_id,
+        "text": text
+    })
+
+# ==============================
+# TELEGRAM: Получить новые сообщения
+# ==============================
+def get_updates(offset=None):
+    params = {"timeout": 30}
+    if offset:
+        params["offset"] = offset
+    try:
+        r = requests.get(f"{TELEGRAM_API}/getUpdates", params=params, timeout=35)
+        return r.json().get("result", [])
+    except Exception as e:
+        print(f"Ошибка получения обновлений: {e}")
+        return []
 
 # ==============================
 # ФУНКЦИЯ: Генерация комментария
@@ -93,75 +118,84 @@ def analyze_post(post_text):
     return f"Ошибка: {result.get('error', 'Неизвестная ошибка')}"
 
 # ==============================
-# КОМАНДЫ БОТА
+# ОБРАБОТКА КОМАНД
 # ==============================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🤖 LinkedIn Agent готов!\n\n"
-        "/comment [текст поста] — написать комментарий\n"
-        "/analyze [текст поста] — проанализировать пост\n"
-        "/help — справка"
-    )
+def handle_message(chat_id, text):
+    text = text.strip()
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Как пользоваться:\n\n"
-        "1. Найди интересный пост в LinkedIn\n"
-        "2. Скопируй текст поста\n"
-        "3. Напиши:\n"
-        "/comment [вставь текст поста]\n\n"
-        "Получишь готовый комментарий на языке поста!"
-    )
-
-async def comment_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    post_text = " ".join(context.args)
-    if not post_text:
-        await update.message.reply_text(
-            "Укажи текст поста после команды.\n"
-            "Пример: /comment Автоматизация — это будущее продаж..."
+    if text.startswith("/start"):
+        send_message(chat_id,
+            "LinkedIn Agent готов!\n\n"
+            "Команды:\n"
+            "/comment [текст поста] — написать комментарий\n"
+            "/analyze [текст поста] — проанализировать пост\n"
+            "/help — справка"
         )
-        return
-    await update.message.reply_text("Генерирую комментарий...")
-    comment = generate_comment(post_text)
-    await update.message.reply_text(f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!")
 
-async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    post_text = " ".join(context.args)
-    if not post_text:
-        await update.message.reply_text(
-            "Укажи текст поста после команды.\n"
-            "Пример: /analyze Автоматизация — это будущее..."
+    elif text.startswith("/help"):
+        send_message(chat_id,
+            "Как пользоваться:\n\n"
+            "1. Найди интересный пост в LinkedIn\n"
+            "2. Скопируй текст поста\n"
+            "3. Напиши мне:\n"
+            "/comment [вставь текст поста]\n\n"
+            "Получишь готовый комментарий на языке поста!"
         )
-        return
-    await update.message.reply_text("Анализирую пост...")
-    analysis = analyze_post(post_text)
-    await update.message.reply_text(f"Анализ поста:\n\n{analysis}")
 
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Используй команды:\n"
-        "/comment [текст] — написать комментарий\n"
-        "/analyze [текст] — проанализировать пост\n"
-        "/help — справка"
-    )
+    elif text.startswith("/comment "):
+        post_text = text[9:].strip()
+        send_message(chat_id, "Генерирую комментарий...")
+        comment = generate_comment(post_text)
+        send_message(chat_id, f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!")
+
+    elif text.startswith("/analyze "):
+        post_text = text[9:].strip()
+        send_message(chat_id, "Анализирую пост...")
+        analysis = analyze_post(post_text)
+        send_message(chat_id, f"Анализ поста:\n\n{analysis}")
+
+    elif text.startswith("/comment") or text.startswith("/analyze"):
+        send_message(chat_id, "Укажи текст поста после команды.\nПример: /comment Автоматизация — это будущее...")
+
+    else:
+        send_message(chat_id,
+            "Используй команды:\n"
+            "/comment [текст] — написать комментарий\n"
+            "/analyze [текст] — проанализировать пост\n"
+            "/help — справка"
+        )
 
 # ==============================
-# ЗАПУСК
+# ГЛАВНЫЙ ЦИКЛ
 # ==============================
 def main():
     print("=" * 50)
     print("LinkedIn Agent + Telegram Bot запущен!")
     print("=" * 50)
 
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("comment", comment_command))
-    app.add_handler(CommandHandler("analyze", analyze_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    send_message(TELEGRAM_CHAT_ID,
+        "LinkedIn Agent запущен!\n\n"
+        "Команды:\n"
+        "/comment [текст поста] — написать комментарий\n"
+        "/analyze [текст поста] — проанализировать пост\n"
+        "/help — справка"
+    )
 
+    offset = None
     print("Бот слушает команды...")
-    app.run_polling(drop_pending_updates=True)
+
+    while True:
+        updates = get_updates(offset)
+        for update in updates:
+            offset = update["update_id"] + 1
+            message = update.get("message")
+            if message and "text" in message:
+                chat_id = message["chat"]["id"]
+                text = message["text"]
+                print(f"Получено сообщение: {text}")
+                handle_message(chat_id, text)
+
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
