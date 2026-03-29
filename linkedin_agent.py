@@ -2,7 +2,7 @@ import os
 import requests
 import logging
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # ==============================
 # НАСТРОЙКИ из Railway Variables
@@ -15,11 +15,7 @@ YOUR_NAME = "Дмитрий"
 YOUR_EXPERTISE = "автоматизация бизнес-процессов и AI-инструменты для продаж"
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# ==============================
-# ПРОВЕРКА ПЕРЕМЕННЫХ
-# ==============================
 if not OPENROUTER_API_KEY:
     print("ОШИБКА: OPENROUTER_API_KEY не найден!")
     exit(1)
@@ -97,59 +93,52 @@ def analyze_post(post_text):
     return f"Ошибка: {result.get('error', 'Неизвестная ошибка')}"
 
 # ==============================
-# КОМАНДЫ TELEGRAM БОТА
+# КОМАНДЫ БОТА
 # ==============================
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "🤖 LinkedIn Agent готов к работе!\n\n"
-        "Доступные команды:\n\n"
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🤖 LinkedIn Agent готов!\n\n"
         "/comment [текст поста] — написать комментарий\n"
         "/analyze [текст поста] — проанализировать пост\n"
-        "/help — показать справку"
+        "/help — справка"
     )
 
-def help_command(update: Update, context: CallbackContext):
-    update.message.reply_text(
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
         "Как пользоваться:\n\n"
         "1. Найди интересный пост в LinkedIn\n"
         "2. Скопируй текст поста\n"
-        "3. Напиши мне:\n"
+        "3. Напиши:\n"
         "/comment [вставь текст поста]\n\n"
-        "Я напишу готовый комментарий на языке поста!"
+        "Получишь готовый комментарий на языке поста!"
     )
 
-def comment_command(update: Update, context: CallbackContext):
+async def comment_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     post_text = " ".join(context.args)
-
     if not post_text:
-        update.message.reply_text(
-            "Укажи текст поста после команды.\n\n"
-            "Пример:\n/comment Автоматизация — это будущее продаж..."
+        await update.message.reply_text(
+            "Укажи текст поста после команды.\n"
+            "Пример: /comment Автоматизация — это будущее продаж..."
         )
         return
-
-    update.message.reply_text("Генерирую комментарий...")
+    await update.message.reply_text("Генерирую комментарий...")
     comment = generate_comment(post_text)
-    update.message.reply_text(
-        f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!"
-    )
+    await update.message.reply_text(f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!")
 
-def analyze_command(update: Update, context: CallbackContext):
+async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     post_text = " ".join(context.args)
-
     if not post_text:
-        update.message.reply_text(
-            "Укажи текст поста после команды.\n\n"
-            "Пример:\n/analyze Автоматизация — это будущее..."
+        await update.message.reply_text(
+            "Укажи текст поста после команды.\n"
+            "Пример: /analyze Автоматизация — это будущее..."
         )
         return
-
-    update.message.reply_text("Анализирую пост...")
+    await update.message.reply_text("Анализирую пост...")
     analysis = analyze_post(post_text)
-    update.message.reply_text(f"Анализ поста:\n\n{analysis}")
+    await update.message.reply_text(f"Анализ поста:\n\n{analysis}")
 
-def handle_text(update: Update, context: CallbackContext):
-    update.message.reply_text(
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
         "Используй команды:\n"
         "/comment [текст] — написать комментарий\n"
         "/analyze [текст] — проанализировать пост\n"
@@ -157,25 +146,22 @@ def handle_text(update: Update, context: CallbackContext):
     )
 
 # ==============================
-# ЗАПУСК БОТА
+# ЗАПУСК
 # ==============================
 def main():
     print("=" * 50)
     print("LinkedIn Agent + Telegram Bot запущен!")
     print("=" * 50)
 
-    updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CommandHandler("comment", comment_command))
-    dp.add_handler(CommandHandler("analyze", analyze_command))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("comment", comment_command))
+    app.add_handler(CommandHandler("analyze", analyze_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     print("Бот слушает команды...")
-    updater.start_polling()
-    updater.idle()
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
