@@ -2,14 +2,13 @@ import os
 import requests
 import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # ==============================
 # НАСТРОЙКИ из Railway Variables
 # ==============================
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "314445281")
 MODEL = "anthropic/claude-3-5-haiku"
 
 YOUR_NAME = "Дмитрий"
@@ -72,13 +71,11 @@ def generate_comment(post_text):
 def analyze_post(post_text):
     prompt = f"""Ты — эксперт по LinkedIn и B2B продажам на немецком рынке.
 
-Проанализируй этот пост и ответь:
-1. Стоит ли его комментировать? (да/нет)
+Проанализируй этот пост и ответь кратко:
+1. Стоит ли комментировать? (да/нет)
 2. Кто автор скорее всего (должность, тип компании)?
 3. Это тёплый лид, холодный, или нецелевой?
 4. Одна причина почему стоит/не стоит комментировать
-
-Отвечай кратко, по пунктам.
 
 ПОСТ:
 {post_text}"""
@@ -102,74 +99,57 @@ def analyze_post(post_text):
 # ==============================
 # КОМАНДЫ TELEGRAM БОТА
 # ==============================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🤖 <b>LinkedIn Agent готов к работе!</b>\n\n"
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text(
+        "🤖 LinkedIn Agent готов к работе!\n\n"
         "Доступные команды:\n\n"
         "/comment [текст поста] — написать комментарий\n"
         "/analyze [текст поста] — проанализировать пост\n"
-        "/help — показать эту справку\n\n"
-        "Просто скопируй текст поста из LinkedIn и отправь мне!",
-        parse_mode="HTML"
+        "/help — показать справку"
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📋 <b>Как пользоваться агентом:</b>\n\n"
-        "1️⃣ Найди интересный пост в LinkedIn\n"
-        "2️⃣ Скопируй текст поста\n"
-        "3️⃣ Напиши мне:\n"
-        "<code>/comment [вставь текст поста]</code>\n\n"
-        "Я напишу готовый комментарий на языке поста!\n\n"
-        "Или используй /analyze чтобы проверить стоит ли вообще комментировать.",
-        parse_mode="HTML"
+def help_command(update: Update, context: CallbackContext):
+    update.message.reply_text(
+        "Как пользоваться:\n\n"
+        "1. Найди интересный пост в LinkedIn\n"
+        "2. Скопируй текст поста\n"
+        "3. Напиши мне:\n"
+        "/comment [вставь текст поста]\n\n"
+        "Я напишу готовый комментарий на языке поста!"
     )
 
-async def comment_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def comment_command(update: Update, context: CallbackContext):
     post_text = " ".join(context.args)
 
     if not post_text:
-        await update.message.reply_text(
-            "⚠️ Укажи текст поста после команды.\n\n"
-            "Пример:\n<code>/comment Автоматизация — это будущее продаж...</code>",
-            parse_mode="HTML"
+        update.message.reply_text(
+            "Укажи текст поста после команды.\n\n"
+            "Пример:\n/comment Автоматизация — это будущее продаж..."
         )
         return
 
-    await update.message.reply_text("⏳ Генерирую комментарий...")
-
+    update.message.reply_text("Генерирую комментарий...")
     comment = generate_comment(post_text)
-
-    await update.message.reply_text(
-        f"💬 <b>Готовый комментарий:</b>\n\n"
-        f"{comment}\n\n"
-        f"✅ Скопируй и вставь в LinkedIn!",
-        parse_mode="HTML"
+    update.message.reply_text(
+        f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!"
     )
 
-async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def analyze_command(update: Update, context: CallbackContext):
     post_text = " ".join(context.args)
 
     if not post_text:
-        await update.message.reply_text(
-            "⚠️ Укажи текст поста после команды.\n\n"
-            "Пример:\n<code>/analyze Автоматизация — это будущее...</code>",
-            parse_mode="HTML"
+        update.message.reply_text(
+            "Укажи текст поста после команды.\n\n"
+            "Пример:\n/analyze Автоматизация — это будущее..."
         )
         return
 
-    await update.message.reply_text("🔍 Анализирую пост...")
-
+    update.message.reply_text("Анализирую пост...")
     analysis = analyze_post(post_text)
+    update.message.reply_text(f"Анализ поста:\n\n{analysis}")
 
-    await update.message.reply_text(
-        f"📊 <b>Анализ поста:</b>\n\n{analysis}",
-        parse_mode="HTML"
-    )
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Если пользователь просто отправил текст без команды"""
-    await update.message.reply_text(
+def handle_text(update: Update, context: CallbackContext):
+    update.message.reply_text(
         "Используй команды:\n"
         "/comment [текст] — написать комментарий\n"
         "/analyze [текст] — проанализировать пост\n"
@@ -184,16 +164,18 @@ def main():
     print("LinkedIn Agent + Telegram Bot запущен!")
     print("=" * 50)
 
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("comment", comment_command))
-    app.add_handler(CommandHandler("analyze", analyze_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help_command))
+    dp.add_handler(CommandHandler("comment", comment_command))
+    dp.add_handler(CommandHandler("analyze", analyze_command))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
 
     print("Бот слушает команды...")
-    app.run_polling(drop_pending_updates=True)
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
