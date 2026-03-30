@@ -1,7 +1,6 @@
 import os
 import requests
 import time
-import logging
 
 # ==============================
 # НАСТРОЙКИ из Railway Variables
@@ -10,11 +9,6 @@ OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "314445281")
 MODEL = "anthropic/claude-3-5-haiku"
-
-YOUR_NAME = "Дмитрий"
-YOUR_EXPERTISE = "автоматизация бизнес-процессов и AI-инструменты для продаж"
-
-logging.basicConfig(level=logging.INFO)
 
 if not OPENROUTER_API_KEY:
     print("ОШИБКА: OPENROUTER_API_KEY не найден!")
@@ -26,6 +20,19 @@ if not TELEGRAM_BOT_TOKEN:
 print("Все переменные найдены — агент запускается!")
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+# ==============================
+# ЗАГРУЗКА ПРОФИЛЯ
+# ==============================
+def load_profile():
+    try:
+        with open("profile.txt", "r", encoding="utf-8") as f:
+            return f.read()
+    except:
+        return "Имя: Дмитрий Белых. Основатель Packitly — премиальная гибкая упаковка для брендов в DACH регионе."
+
+PROFILE = load_profile()
+print("Профиль загружен!")
 
 # ==============================
 # TELEGRAM: Отправить сообщение
@@ -54,16 +61,20 @@ def get_updates(offset=None):
 # ФУНКЦИЯ: Генерация комментария
 # ==============================
 def generate_comment(post_text):
-    prompt = f"""Ты — {YOUR_NAME}, эксперт в области {YOUR_EXPERTISE}.
+    prompt = f"""Ты — Дмитрий Белых, основатель Packitly. Вот твой полный профиль:
 
-Прочитай этот пост из LinkedIn и напиши умный, персонализированный комментарий от моего лица.
+{PROFILE}
+
+Прочитай этот пост из LinkedIn и напиши умный, персонализированный комментарий от лица Дмитрия.
 
 Правила:
 - Длина: 2-4 предложения
-- Тон: профессиональный, дружелюбный
-- Упомяни конкретную деталь из поста
+- Тон: профессиональный, уверенный, спокойный (German Business Style)
+- Упомяни конкретную деталь из поста — покажи что реально читал
+- Если пост связан с твоими индустриями (упаковка, снеки, кофе, протеин, CBD, pet food) — добавь короткий экспертный инсайт
 - Определи язык поста и отвечай на том же языке (немецкий или английский)
-- НЕ пиши "Nice post!" или банальщину
+- НЕ пиши "Nice post!", "Great insight!" или другие банальности
+- НЕ продавай напрямую — consultative approach
 
 ПОСТ:
 {post_text}
@@ -90,12 +101,15 @@ def generate_comment(post_text):
 # ФУНКЦИЯ: Анализ поста
 # ==============================
 def analyze_post(post_text):
-    prompt = f"""Ты — эксперт по LinkedIn и B2B продажам на немецком рынке.
+    prompt = f"""Ты — эксперт по LinkedIn и B2B продажам в DACH регионе.
+
+Вот профиль клиента которому нужен анализ:
+{PROFILE}
 
 Проанализируй этот пост и ответь кратко:
 1. Стоит ли комментировать? (да/нет)
-2. Кто автор скорее всего (должность, тип компании)?
-3. Это тёплый лид, холодный, или нецелевой?
+2. Кто автор скорее всего (должность, индустрия)?
+3. Это тёплый лид, холодный, или нецелевой для Packitly?
 4. Одна причина почему стоит/не стоит комментировать
 
 ПОСТ:
@@ -125,26 +139,27 @@ def handle_message(chat_id, text):
 
     if text.startswith("/start"):
         send_message(chat_id,
-            "LinkedIn Agent готов!\n\n"
+            "Packitly LinkedIn Agent готов!\n\n"
             "Команды:\n"
-            "/comment [текст поста] — написать комментарий\n"
-            "/analyze [текст поста] — проанализировать пост\n"
+            "/comment [текст поста] — написать комментарий от Дмитрия\n"
+            "/analyze [текст поста] — проанализировать пост как лид\n"
             "/help — справка"
         )
 
     elif text.startswith("/help"):
         send_message(chat_id,
             "Как пользоваться:\n\n"
-            "1. Найди интересный пост в LinkedIn\n"
+            "1. Найди пост в LinkedIn от потенциального клиента\n"
             "2. Скопируй текст поста\n"
-            "3. Напиши мне:\n"
+            "3. Напиши:\n"
             "/comment [вставь текст поста]\n\n"
-            "Получишь готовый комментарий на языке поста!"
+            "Получишь готовый комментарий на языке поста!\n\n"
+            "Используй /analyze чтобы понять стоит ли вообще комментировать."
         )
 
     elif text.startswith("/comment "):
         post_text = text[9:].strip()
-        send_message(chat_id, "Генерирую комментарий...")
+        send_message(chat_id, "Генерирую комментарий от Дмитрия...")
         comment = generate_comment(post_text)
         send_message(chat_id, f"Готовый комментарий:\n\n{comment}\n\nСкопируй и вставь в LinkedIn!")
 
@@ -155,7 +170,10 @@ def handle_message(chat_id, text):
         send_message(chat_id, f"Анализ поста:\n\n{analysis}")
 
     elif text.startswith("/comment") or text.startswith("/analyze"):
-        send_message(chat_id, "Укажи текст поста после команды.\nПример: /comment Автоматизация — это будущее...")
+        send_message(chat_id,
+            "Укажи текст поста после команды.\n"
+            "Пример: /comment Wir suchen nach neuen Verpackungslösungen..."
+        )
 
     else:
         send_message(chat_id,
@@ -170,14 +188,14 @@ def handle_message(chat_id, text):
 # ==============================
 def main():
     print("=" * 50)
-    print("LinkedIn Agent + Telegram Bot запущен!")
+    print("Packitly LinkedIn Agent запущен!")
     print("=" * 50)
 
     send_message(TELEGRAM_CHAT_ID,
-        "LinkedIn Agent запущен!\n\n"
-        "Команды:\n"
+        "Packitly LinkedIn Agent запущен!\n\n"
+        "Профиль Дмитрия загружен — теперь комментарии будут написаны как настоящий эксперт по упаковке.\n\n"
         "/comment [текст поста] — написать комментарий\n"
-        "/analyze [текст поста] — проанализировать пост\n"
+        "/analyze [текст поста] — проанализировать лида\n"
         "/help — справка"
     )
 
@@ -192,9 +210,8 @@ def main():
             if message and "text" in message:
                 chat_id = message["chat"]["id"]
                 text = message["text"]
-                print(f"Получено сообщение: {text}")
+                print(f"Получено: {text[:50]}")
                 handle_message(chat_id, text)
-
         time.sleep(1)
 
 if __name__ == "__main__":
